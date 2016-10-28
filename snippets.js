@@ -1,4 +1,4 @@
-const MongoClient = require('mongodb').MongoClient;  // <-- is this a funtion or object?
+const MongoClient = require('mongodb').MongoClient;
 
 MongoClient.connect('mongodb://localhost/snippetsdb', function(err, db) {
   if (err) {
@@ -6,7 +6,6 @@ MongoClient.connect('mongodb://localhost/snippetsdb', function(err, db) {
     db.close();
     return;
   }
-  console.log('Connected to MongoDB database');
 
 const collection = db.collection('snippets');
 
@@ -37,9 +36,9 @@ const collection = db.collection('snippets');
       if (!snippet || err) {
         console.error('Could not read snippet', name);
       } else {
+        snippet.version > 1 ? console.log('Updated on', snippet.date) : console.log('Created on', snippet.date);
         console.log('Read snippet', snippet.name);
         console.log(snippet.content);
-        console.log('Created on', snippet.date, snippet.version);
       }
       db.close();
     });
