@@ -1,1 +1,2 @@
+mkdir -p mongo_data/
 mongod --bind_ip=127.0.0.1 --dbpath=/home/bryan/code/thinkful/mongo-notes/mongo_data --nojournal --rest "$@"
