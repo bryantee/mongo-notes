@@ -1,13 +1,20 @@
-const MongoClient = require('mongodb').MongoClient;
+const mongoose = require('mongoose');
+mongoose.Promise = global.Promise;
+mongoose.connect('mongodb://localhost')
 
-MongoClient.connect('mongodb://localhost/snippetsdb', function(err, db) {
-  if (err) {
-    console.error(err);
-    db.close();
-    return;
-  }
+mongoose.connection.on('error', function(err) {
+  console.error('Couldn\'t connect. Error:', err);
+});
 
-const collection = db.collection('snippets');
+mongoose.connection.once('open', function() {
+  const snippetSchema = mongoose.Schema({
+    name: {type: String, unique: true},
+    content: String,
+    date: {type: Date},
+    version: Number
+  });
+
+  const Snippet = mongoose.model('Snippet', snippetSchema);
 
   const create = function(name, content) {
     let snippet = {
@@ -16,23 +23,22 @@ const collection = db.collection('snippets');
       date: new Date(),
       version: 1
     }
-    collection.insert(snippet, function(err, result) {
-      if (err) {
+    Snippet.create(snippet, function(err, result) {
+      if (err || !snippet) {
         console.error('Could not create snippet', name);
-        db.close();
+        mongoose.disconnect();
         return;
       }
       console.log('Created snippet', name);
-      db.close();
+      mongoose.disconnect();
     });
-    db.close();
   };
 
   const read = function(name) {
-    let query = {
+    const query = {
       name: name
     };
-    collection.findOne(query, function(err, snippet) {
+    Snippet.findOne(query, function(err, snippet) {
       if (!snippet || err) {
         console.error('Could not read snippet', name);
       } else {
@@ -40,7 +46,7 @@ const collection = db.collection('snippets');
         console.log('Read snippet', snippet.name);
         console.log(snippet.content);
       }
-      db.close();
+      mongoose.disconnect();
     });
   };
 
@@ -50,26 +56,20 @@ const collection = db.collection('snippets');
     };
 
     let update = {
-      $set: {
         content: contents,
         date: new Date(),
-      },
-      $inc: {
-        version: 1
-      }
     };
 
-    collection.findAndModify(query, null, update, function(err, result) {
-      let snippet = result.value;
+    Snippet.findOneAndUpdate(query, update, function(err, snippet) {
+      // console.log(result.value);
       if (!snippet || err) {
-        console.error('Could not update snippet', name);
-        db.close();
+        console.error('Could not update snippet', name, 'Error:', err);
+        mongoose.disconnect();
+        return;
       } else {
-        collection.findOne(query, function(err, result) {
-          console.log('Updated snippet', result.name);
-          console.log(result.content);
-          db.close();
-        });
+        console.log('Updated snippet', snippet.name);
+        console.log(snippet.content);
+        mongoose.disconnect();
       }
     });
   };
@@ -78,14 +78,15 @@ const collection = db.collection('snippets');
     let query = {
       name: name
     };
-    collection.findAndRemove(query, function(err, result) {
-      let snippet = result.value;
+    Snippet.findOneAndRemove(query, function(err, snippet) {
       if (!snippet || err) {
-        console.error('Could not delete snippet', name);
+        console.error('Could not delete snippet', name, 'Error:', err);
+        mongoose.disconnect();
+        return;
       } else {
         console.log('Deleted snippet', snippet.name);
       }
-      db.close();
+      mongoose.disconnect();
     })
   };
 
@@ -104,8 +105,11 @@ const collection = db.collection('snippets');
     }
     else {
       console.error('Command not recognized');
-      db.close();
+      mongoose.disconnect();
     }
   }
+
   main();
+
+
 });
