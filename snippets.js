@@ -1,49 +1,40 @@
-const MongoClient = require('mongodb').MongoClient;
+const mongoose = require('mongoose');
+mongoose.Promise = global.Promise;
+mongoose.connect('mongodb://localhost')
 
-MongoClient.connect('mongodb://localhost/snippetsdb', function(err, db) {
-  if (err) {
-    console.error(err);
-    db.close();
-    return;
-  }
+mongoose.connection.on('error', function(err) {
+  console.error('Couldn\'t connect. Error:', err);
+});
 
-const collection = db.collection('snippets');
+mongoose.connection.once('open', function() {
+  const snippetSchema = mongoose.Schema({
+    name: {type: String, unique: true},
+    content: String,
+    date: {type: Date},
+    version: Number
+  });
 
-  const create = function(name, content) {
-    let snippet = {
-      name: name,
-      content: content,
-      date: new Date(),
-      version: 1
-    }
-    collection.insert(snippet, function(err, result) {
-      if (err) {
-        console.error('Could not create snippet', name);
-        db.close();
-        return;
-      }
-      console.log('Created snippet', name);
-      db.close();
-    });
-    db.close();
-  };
+  const Snippet = mongoose.model('Snippet', snippetSchema);
 
+  // read function takes name as argument -- passed from commandline as argument
   const read = function(name) {
-    let query = {
+    const query = {
       name: name
     };
-    collection.findOne(query, function(err, snippet) {
+    Snippet.findOne(query, function(err, snippet) {
       if (!snippet || err) {
         console.error('Could not read snippet', name);
       } else {
         snippet.version > 1 ? console.log('Updated on', snippet.date) : console.log('Created on', snippet.date);
         console.log('Read snippet', snippet.name);
         console.log(snippet.content);
+        console.log('Version', snippet.version);
       }
-      db.close();
+      mongoose.disconnect();
     });
   };
 
+  // update function -- takes name and contents passed as arguments from commandline
   const update = function(name, contents) {
     let query = {
       name: name
@@ -52,46 +43,43 @@ const collection = db.collection('snippets');
     let update = {
       $set: {
         content: contents,
-        date: new Date(),
+        date: new Date()
       },
-      $inc: {
-        version: 1
-      }
+      $inc: {version: 1}
     };
 
-    collection.findAndModify(query, null, update, function(err, result) {
-      let snippet = result.value;
+    Snippet.findOneAndUpdate(query, update, {upsert: true, new: true}, function(err, snippet) {
       if (!snippet || err) {
-        console.error('Could not update snippet', name);
-        db.close();
+        console.error('Could not update snippet', name, 'Error:', err);
+        mongoose.disconnect();
+        return;
       } else {
-        collection.findOne(query, function(err, result) {
-          console.log('Updated snippet', result.name);
-          console.log(result.content);
-          db.close();
-        });
+        read(name);
       }
     });
   };
 
-  const del = function(name, content) {
+  // delete function -- name passed as argument in commandline.
+  const del = function(name) {
     let query = {
       name: name
     };
-    collection.findAndRemove(query, function(err, result) {
-      let snippet = result.value;
+    Snippet.findOneAndRemove(query, function(err, snippet) {
       if (!snippet || err) {
-        console.error('Could not delete snippet', name);
+        console.error('Could not delete snippet', name, 'Error:', err);
+        mongoose.disconnect();
+        return;
       } else {
         console.log('Deleted snippet', snippet.name);
       }
-      db.close();
+      mongoose.disconnect();
     })
   };
 
+  // Main, where all commandline arguments are parsed and correct functions are called
   const main = function() {
     if (process.argv[2] == 'create') {
-      create(process.argv[3], process.argv[4]);
+      update(process.argv[3], process.argv[4]); // YES, create does call update() in the program -- update handles create + updates
     }
     else if (process.argv[2] == 'read') {
       read(process.argv[3]);
@@ -104,8 +92,10 @@ const collection = db.collection('snippets');
     }
     else {
       console.error('Command not recognized');
-      db.close();
+      mongoose.disconnect();
     }
   }
+
   main();
+
 });
