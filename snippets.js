@@ -16,6 +16,7 @@ mongoose.connection.once('open', function() {
 
   const Snippet = mongoose.model('Snippet', snippetSchema);
 
+  // read function takes name as argument -- passed from commandline as argument
   const read = function(name) {
     const query = {
       name: name
@@ -33,6 +34,7 @@ mongoose.connection.once('open', function() {
     });
   };
 
+  // update function -- takes name and contents passed as arguments from commandline
   const update = function(name, contents) {
     let query = {
       name: name
@@ -47,7 +49,6 @@ mongoose.connection.once('open', function() {
     };
 
     Snippet.findOneAndUpdate(query, update, {upsert: true, new: true}, function(err, snippet) {
-      // console.log(result.value);
       if (!snippet || err) {
         console.error('Could not update snippet', name, 'Error:', err);
         mongoose.disconnect();
@@ -58,7 +59,8 @@ mongoose.connection.once('open', function() {
     });
   };
 
-  const del = function(name, content) {
+  // delete function -- name passed as argument in commandline.
+  const del = function(name) {
     let query = {
       name: name
     };
@@ -74,9 +76,10 @@ mongoose.connection.once('open', function() {
     })
   };
 
+  // Main, where all commandline arguments are parsed and correct functions are called
   const main = function() {
     if (process.argv[2] == 'create') {
-      update(process.argv[3], process.argv[4]);
+      update(process.argv[3], process.argv[4]); // YES, create does call update() in the program -- update handles create + updates
     }
     else if (process.argv[2] == 'read') {
       read(process.argv[3]);
