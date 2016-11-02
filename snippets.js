@@ -16,24 +16,6 @@ mongoose.connection.once('open', function() {
 
   const Snippet = mongoose.model('Snippet', snippetSchema);
 
-  const create = function(name, content) {
-    let snippet = {
-      name: name,
-      content: content,
-      date: new Date(),
-      version: 1
-    }
-    Snippet.create(snippet, function(err, result) {
-      if (err || !snippet) {
-        console.error('Could not create snippet', name);
-        mongoose.disconnect();
-        return;
-      }
-      console.log('Created snippet', name);
-      mongoose.disconnect();
-    });
-  };
-
   const read = function(name) {
     const query = {
       name: name
@@ -45,6 +27,7 @@ mongoose.connection.once('open', function() {
         snippet.version > 1 ? console.log('Updated on', snippet.date) : console.log('Created on', snippet.date);
         console.log('Read snippet', snippet.name);
         console.log(snippet.content);
+        console.log('Version', snippet.version);
       }
       mongoose.disconnect();
     });
@@ -56,20 +39,21 @@ mongoose.connection.once('open', function() {
     };
 
     let update = {
+      $set: {
         content: contents,
-        date: new Date(),
+        date: new Date()
+      },
+      $inc: {version: 1}
     };
 
-    Snippet.findOneAndUpdate(query, update, function(err, snippet) {
+    Snippet.findOneAndUpdate(query, update, {upsert: true, new: true}, function(err, snippet) {
       // console.log(result.value);
       if (!snippet || err) {
         console.error('Could not update snippet', name, 'Error:', err);
         mongoose.disconnect();
         return;
       } else {
-        console.log('Updated snippet', snippet.name);
-        console.log(snippet.content);
-        mongoose.disconnect();
+        read(name);
       }
     });
   };
@@ -92,7 +76,7 @@ mongoose.connection.once('open', function() {
 
   const main = function() {
     if (process.argv[2] == 'create') {
-      create(process.argv[3], process.argv[4]);
+      update(process.argv[3], process.argv[4]);
     }
     else if (process.argv[2] == 'read') {
       read(process.argv[3]);
@@ -110,6 +94,5 @@ mongoose.connection.once('open', function() {
   }
 
   main();
-
 
 });
